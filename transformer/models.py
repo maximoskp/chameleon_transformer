@@ -9,6 +9,8 @@ sys.path.insert(0, '..')
 from transformer.positional_encoding import PositionalEncoding
 from transformer.layers import EncoderLayer, DecoderLayer
 
+dev = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 class Transformer(nn.Module):
     def __init__(self, src_vocab_size, tgt_vocab_size, d_model, num_heads, num_layers, d_ff, max_seq_length, dropout):
         super(Transformer, self).__init__()
@@ -85,10 +87,10 @@ class DecoderModel(nn.Module):
     # end init
 
     def generate_mask(self, src, tgt, pad_token_idx=0):
-        src_mask = (src != pad_token_idx).unsqueeze(1).unsqueeze(2)
-        tgt_mask = (tgt != pad_token_idx).unsqueeze(1).unsqueeze(3)
+        src_mask = (src != pad_token_idx).unsqueeze(1).unsqueeze(2).to(dev)
+        tgt_mask = (tgt != pad_token_idx).unsqueeze(1).unsqueeze(3).to(dev)
         seq_length = tgt.size(1)
-        nopeak_mask = (1 - torch.triu(torch.ones(1, seq_length, seq_length), diagonal=1)).bool()
+        nopeak_mask = (1 - torch.triu(torch.ones(1, seq_length, seq_length), diagonal=1)).bool().to(dev)
         tgt_mask = tgt_mask & nopeak_mask
         return src_mask, tgt_mask
     # end generate_mask
