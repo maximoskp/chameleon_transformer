@@ -146,3 +146,19 @@ class MLMEncoderWrapper(nn.Module):
         return logits_vocab_size
     # end forward
 # end class MLMEncoderWrapper
+
+class EncoderOnlyWrapper(nn.Module):
+    def __init__(self, encoderModel):
+        super(EncoderOnlyWrapper, self).__init__()
+        self.encoder_model = encoderModel
+        # decoder is shared with embedding layer
+        n_vocab, n_dim = self.encoder_model.encoder_embedding.weight.size()
+        self.decoder = nn.Linear(n_dim, n_vocab, bias=False)
+    # end init
+
+    def forward(self, input_ids):
+        output = self.encoder_model(input_ids)
+        logits_vocab_size = self.decoder(output)
+        return logits_vocab_size
+    # end forward
+# end class EncoderOnlyWrapper
