@@ -153,7 +153,7 @@ class EncoderOnlyWrapper(nn.Module):
         self.encoder_model = encoderModel
         # decoder is shared with embedding layer
         n_vocab, n_dim = self.encoder_model.encoder_embedding.weight.size()
-        self.decoder = nn.Linear(n_dim, n_vocab, bias=False)
+        self.decoder = nn.Linear(n_dim, n_vocab)
     # end init
 
     def forward(self, input_ids):
@@ -162,3 +162,44 @@ class EncoderOnlyWrapper(nn.Module):
         return logits_vocab_size
     # end forward
 # end class EncoderOnlyWrapper
+
+class ContinuousEncoder(nn.Module):
+    def __init__(self, src_vocab_size, d_model, num_heads, num_layers, d_ff, max_seq_length, dropout):
+        super(ContinuousEncoder, self).__init__()
+        self.encoder_embedding = nn.Linear(src_vocab_size, d_model)
+        self.positional_encoding = PositionalEncoding(d_model, max_seq_length)
+        self.encoder_layers = nn.ModuleList([EncoderLayer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)])
+        self.dropout = nn.Dropout(dropout)
+    # end init
+
+    def generate_mask(self, src, pad_token_idx=0):
+        src_mask = (src != pad_token_idx).unsqueeze(1).unsqueeze(2)
+        return src_mask
+    # end generate_mask
+
+    def forward(self, src, pad_token_idx=0):
+        # src_mask = self.generate_mask(src, pad_token_idx)
+        src_embedded = self.dropout(self.positional_encoding(self.encoder_embedding(src)))
+        enc_output = src_embedded
+        for enc_layer in self.encoder_layers:
+            enc_output = enc_layer(enc_output, None)
+            # enc_output = enc_layer(enc_output, src_mask)
+        return enc_output
+    # end forward
+# end class ContinuousEncoder
+
+class ContinuousEncoderOnlyWrapper(nn.Module):
+    def __init__(self, encoderModel):
+        super(ContinuousEncoderOnlyWrapper, self).__init__()
+        self.encoder_model = encoderModel
+        # decoder is shared with embedding layer
+        n_dim, n_vocab = self.encoder_model.encoder_embedding.weight.size()
+        self.decoder = nn.Linear(n_dim, n_vocab)
+    # end init
+
+    def forward(self, input_ids):
+        output = self.encoder_model(input_ids)
+        logits_vocab_size = self.decoder(output)
+        return logits_vocab_size
+    # end forward
+# end class ContinuousEncoderOnlyWrapper
