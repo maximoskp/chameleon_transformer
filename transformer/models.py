@@ -228,7 +228,6 @@ class ContinuousDecoderModel(nn.Module):
         dec_output = tgt_embedded
         for dec_layer in self.decoder_layers:
             dec_output = dec_layer(dec_output, enc_output, src_mask, tgt_mask)
-
         output = self.fc(dec_output)
         return output
     # end forward
