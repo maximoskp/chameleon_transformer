@@ -55,7 +55,7 @@ transformer = transformer.to(dev)
 
 # train model
 criterion = CrossEntropyLoss(ignore_index=0)
-optimizer = Adam(transformer.parameters(), lr=0.001, betas=(0.9, 0.99), eps=1e-9)
+optimizer = Adam(transformer.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
 
 transformer.train()
 
