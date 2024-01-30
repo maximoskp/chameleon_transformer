@@ -1,4 +1,4 @@
-from data_utils.Datasets import TokenizedChromaDataset
+from data_utils.Datasets import TokenizedChromaDataset, PermutationsTokenizedChromaDataset
 import numpy as np
 from torch.utils.data import DataLoader, Subset
 import sys
@@ -10,6 +10,7 @@ import torch
 from tqdm import tqdm
 import os
 
+# load data
 npz_path = 'data/augmented_and_padded_data.npz'
 dataset = TokenizedChromaDataset(npz_path)
 
@@ -25,6 +26,11 @@ epochs = 1000
 train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True)
 
+# permutation data
+permutation_dataset = PermutationsTokenizedChromaDataset(npz_path)
+permutation_loader = DataLoader(permutation_dataset, batch_size=batch_size, shuffle=True)
+
+# define model
 src_vocab_size = 2**12
 tgt_vocab_size = 2**12
 d_model = 256
@@ -46,6 +52,7 @@ transformer = TransformerFromModels(encoderModel, decoderModel)
 
 transformer = transformer.to(dev)
 
+# train model
 criterion = CrossEntropyLoss(ignore_index=0)
 optimizer = Adam(transformer.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
 
@@ -66,6 +73,26 @@ for epoch in range(epochs):
     accuracy = 0
     with tqdm(train_loader, unit='batch') as tepoch:
         tepoch.set_description(f"Epoch {epoch} | trn")
+        for melodies, chords in tepoch:
+            melodies = melodies.to(dev)
+            chords = chords.to(dev)
+            optimizer.zero_grad()
+            output = transformer(melodies, chords[:, :-1])
+            loss = criterion(output.contiguous().view(-1, tgt_vocab_size), chords[:, 1:].contiguous().view(-1))
+            loss.backward()
+            optimizer.step()
+            # update loss
+            samples_num += melodies.shape[0]
+            running_loss += loss.item()
+            train_loss = running_loss/samples_num
+            # accuracy
+            prediction = output.argmax(dim=2, keepdim=True).squeeze()
+            running_accuracy += (prediction == chords[:, 1:]).sum().item()/prediction.shape[1]
+            accuracy = running_accuracy/samples_num
+            tepoch.set_postfix(loss=train_loss, accuracy=accuracy) # tepoch.set_postfix(loss=loss.item(), accuracy=100. * accuracy)
+    # permutations
+    with tqdm(permutation_loader, unit='batch') as tepoch:
+        tepoch.set_description(f"Epoch {epoch} | prm")
         for melodies, chords in tepoch:
             melodies = melodies.to(dev)
             chords = chords.to(dev)

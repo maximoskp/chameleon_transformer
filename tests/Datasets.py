@@ -36,3 +36,50 @@ class BinChromaDataset(Dataset):
         return self.melody_pcps[idx,:,:], self.chord_pcps[idx,:,:]
     # end __getitem__
 # end BinChromaDataset
+
+class PermutationsTokenizedChromaDataset(Dataset):
+    def __init__(self, npz_path):
+        data = np.load(npz_path)
+        self.melody_pcps = data['melody_pcps']
+        self.chord_pcps = data['chord_pcps']
+        self.binTok = BinaryTokenizer()
+    # end __init__
+    
+    def __len__(self):
+        return self.melody_pcps.shape[0]
+    # end __len__
+    
+    def __getitem__(self, idx):
+        m = self.melody_pcps[idx,:,:]
+        c = self.chord_pcps[idx,:,:]
+        for i in range(m.shape[1]):
+            p = np.random.permutation(12)
+            m[i,:] = m[i,p]
+            c[i,:] = c[i,p]
+        self.binTok.fit_transform( c )
+        self.binTok.fit_transform( m )
+        return self.binTok.fit_transform( m ), self.binTok.fit_transform( c )
+    # end __getitem__
+# end TokenizedChromaDataset
+
+class PermutationsBinChromaDataset(Dataset):
+    def __init__(self, npz_path):
+        data = np.load(npz_path)
+        self.melody_pcps = data['melody_pcps'].astype('float32')
+        self.chord_pcps = data['chord_pcps'].astype('float32')
+    # end __init__
+    
+    def __len__(self):
+        return self.melody_pcps.shape[0]
+    # end __len__
+    
+    def __getitem__(self, idx):
+        m = self.melody_pcps[idx,:,:]
+        c = self.chord_pcps[idx,:,:]
+        for i in range(m.shape[1]):
+            p = np.random.permutation(12)
+            m[i,:] = m[i,p]
+            c[i,:] = c[i,p]
+        return m, c
+    # end __getitem__
+# end BinChromaDataset
