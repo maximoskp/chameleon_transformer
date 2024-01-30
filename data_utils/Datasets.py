@@ -1,4 +1,4 @@
-from BinaryTokenizer import BinaryTokenizer
+from .BinaryTokenizer import BinaryTokenizer
 from torch.utils.data import Dataset
 import numpy as np
 
