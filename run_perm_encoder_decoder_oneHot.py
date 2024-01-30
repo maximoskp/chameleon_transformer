@@ -68,7 +68,7 @@ os.makedirs(save_dir, exist_ok=True)
 
 # save results
 os.makedirs('results', exist_ok=True)
-results_path = 'results/encoder_decoder_oneHot.csv'
+results_path = 'results/perm_encoder_decoder_oneHot.csv'
 result_fields = ['epoch', 'train_loss', 'tran_acc', 'perm_loss', 'perm_acc', 'val_loss', 'val_acc']
 with open( results_path, 'w' ) as f:
     writer = csv.writer(f)
