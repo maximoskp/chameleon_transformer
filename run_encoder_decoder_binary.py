@@ -48,7 +48,7 @@ transformer = TransformerFromModels(encoderModel, decoderModel)
 transformer = transformer.to(dev)
 
 criterion = BCEWithLogitsLoss()
-optimizer = Adam(transformer.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
+optimizer = Adam(transformer.parameters(), lr=0.001, betas=(0.9, 0.99), eps=1e-9)
 
 transformer.train()
 
