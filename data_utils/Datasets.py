@@ -6,7 +6,8 @@ class TokenizedChromaDataset(Dataset):
     def __init__(self, npz_path):
         data = np.load(npz_path)
         melody_pcps = data['melody_pcps']
-        chord_pcps = data['chord_pcps']
+        # pad to start with zero
+        chord_pcps = np.pad(data['chord_pcps'], ( (0,0), (1,0), (0,0) ), mode='constant', constant_values=1)
         binTok = BinaryTokenizer()
         self.tok_melody = binTok.fit_transform( melody_pcps )
         self.tok_chord = binTok.fit_transform( chord_pcps )
@@ -25,7 +26,7 @@ class BinChromaDataset(Dataset):
     def __init__(self, npz_path):
         data = np.load(npz_path)
         self.melody_pcps = data['melody_pcps'].astype('float32')
-        self.chord_pcps = data['chord_pcps'].astype('float32')
+        self.chord_pcps = np.pad(data['chord_pcps'].astype('float32'), ( (0,0), (1,0), (0,0) ), mode='constant', constant_values=1)
     # end __init__
     
     def __len__(self):
@@ -41,7 +42,7 @@ class PermutationsTokenizedChromaDataset(Dataset):
     def __init__(self, npz_path):
         data = np.load(npz_path)
         self.melody_pcps = data['melody_pcps']
-        self.chord_pcps = data['chord_pcps']
+        self.chord_pcps = np.pad(data['chord_pcps'], ( (0,0), (1,0), (0,0) ), mode='constant', constant_values=1)
         self.binTok = BinaryTokenizer()
     # end __init__
     
@@ -66,7 +67,7 @@ class PermutationsBinChromaDataset(Dataset):
     def __init__(self, npz_path):
         data = np.load(npz_path)
         self.melody_pcps = data['melody_pcps'].astype('float32')
-        self.chord_pcps = data['chord_pcps'].astype('float32')
+        self.chord_pcps = np.pad(data['chord_pcps'].astype('float32'), ( (0,0), (1,0), (0,0) ), mode='constant', constant_values=1)
     # end __init__
     
     def __len__(self):

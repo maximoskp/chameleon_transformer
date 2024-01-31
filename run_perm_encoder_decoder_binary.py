@@ -34,17 +34,18 @@ permutation_loader = DataLoader(permutation_dataset, batch_size=batch_size, shuf
 # define model
 src_vocab_size = 12
 tgt_vocab_size = 12
-d_model = 256
+d_model = 512
 num_heads = 8
 num_layers = 8
-d_ff = 256
-max_seq_length = 129
+d_ff = 512
+enc_max_seq_length = 129
+dec_max_seq_length = 130
 dropout = 0.3
 
 dev = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-encoderModel = ContinuousEncoder(src_vocab_size, d_model, num_heads, num_layers, d_ff, max_seq_length, dropout)
-decoderModel = ContinuousDecoderModel(tgt_vocab_size, d_model, num_heads, num_layers, d_ff, max_seq_length, dropout)
+encoderModel = ContinuousEncoder(src_vocab_size, d_model, num_heads, num_layers, d_ff, enc_max_seq_length, dropout)
+decoderModel = ContinuousDecoderModel(tgt_vocab_size, d_model, num_heads, num_layers, d_ff, dec_max_seq_length, dropout)
 
 encoderModel = encoderModel.to(dev)
 decoderModel = decoderModel.to(dev)
