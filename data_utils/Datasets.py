@@ -9,7 +9,7 @@ class TokenizedChromaDataset(Dataset):
         chord_pcps = data['chord_pcps']
         binTok = BinaryTokenizer()
         self.tok_melody = binTok.fit_transform( melody_pcps )
-        self.tok_chord = binTok.fit_transform( chord_pcps )
+        self.tok_chord = np.concatenate( (self.tok_melody , binTok.fit_transform( chord_pcps )), axis=1 )
     # end __init__
     
     def __len__(self):
@@ -25,7 +25,7 @@ class BinChromaDataset(Dataset):
     def __init__(self, npz_path):
         data = np.load(npz_path)
         self.melody_pcps = data['melody_pcps'].astype('float32')
-        self.chord_pcps = data['chord_pcps'].astype('float32')
+        self.chord_pcps = np.concatenate( (self.melody_pcps, data['chord_pcps'].astype('float32')), axis=1 )
     # end __init__
     
     def __len__(self):
