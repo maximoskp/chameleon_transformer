@@ -35,8 +35,8 @@ permutation_loader = DataLoader(permutation_dataset, batch_size=batch_size, shuf
 src_vocab_size = 2**12
 tgt_vocab_size = 2**12
 d_model = 512
-num_heads = 8
-num_layers = 8
+num_heads = 16
+num_layers = 16
 d_ff = 512
 enc_max_seq_length = 129
 dec_max_seq_length = 130
