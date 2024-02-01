@@ -33,10 +33,10 @@ permutation_loader = DataLoader(permutation_dataset, batch_size=batch_size, shuf
 
 # define model
 vocab_size = 2**12
-d_model = 256
-num_heads = 8
-num_layers = 8
-d_ff = 256
+d_model = 512
+num_heads = 16
+num_layers = 16
+d_ff = 512
 max_seq_length = 2*129 + 1 # include "start decoding" padding - all ones
 dropout = 0.3
 
