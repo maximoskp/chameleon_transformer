@@ -1,9 +1,9 @@
-from data_utils.Datasets import TokenizedChromaDataset
+from data_utils.Datasets import TokenizedConcatChromaDataset
 import numpy as np
 from torch.utils.data import DataLoader, Subset
 import sys
 sys.path.insert(0, '..')
-from transformer.models import TransformerFromModels, EncoderModel, DecoderModel
+from transformer.models import DecoderOnlyModel
 from torch.nn import CrossEntropyLoss
 from torch.optim import Adam
 import torch
@@ -12,7 +12,7 @@ import os
 import csv
 
 npz_path = 'data/augmented_and_padded_data.npz'
-dataset = TokenizedChromaDataset(npz_path)
+dataset = TokenizedConcatChromaDataset(npz_path)
 
 train_percentage = 0.9
 split_idx = int( len(dataset)*train_percentage )
@@ -26,25 +26,17 @@ epochs = 1000
 train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True)
 
-src_vocab_size = 2**12
-tgt_vocab_size = 2**12
+vocab_size = 2**12
 d_model = 256
 num_heads = 8
 num_layers = 8
 d_ff = 256
-enc_max_seq_length = 129
-dec_max_seq_length = 2*129
+max_seq_length = 2*129 + 1 # include "start decoding" padding - all ones
 dropout = 0.3
 
 dev = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-encoderModel = EncoderModel(src_vocab_size, d_model, num_heads, num_layers, d_ff, enc_max_seq_length, dropout)
-decoderModel = DecoderModel(tgt_vocab_size, d_model, num_heads, num_layers, d_ff, dec_max_seq_length, dropout)
-
-encoderModel = encoderModel.to(dev)
-decoderModel = decoderModel.to(dev)
-
-transformer = TransformerFromModels(encoderModel, decoderModel)
+transformer = DecoderOnlyModel(vocab_size, d_model, num_heads, num_layers, d_ff, max_seq_length, dropout)
 
 transformer = transformer.to(dev)
 
@@ -53,17 +45,18 @@ optimizer = Adam(transformer.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-
 
 transformer.train()
 
+save_name = 'decoderOnly_one_hot'
+
 # keep best validation loss for saving
 best_val_loss = np.inf
-save_dir = 'saved_models/encoder_decoder_one_hot/'
-encoder_path = save_dir + 'encoder_one_hot.pt'
-decoder_path = save_dir + 'decoder_one_hot.pt'
+save_dir = 'saved_models/' + save_name + '/'
+transformer_path = save_dir + save_name + '.pt'
 os.makedirs(save_dir, exist_ok=True)
 
 # save results
 os.makedirs('results', exist_ok=True)
-results_path = 'results/encoder_decoder_oneHot.csv'
-result_fields = ['epoch', 'train_loss', 'tran_acc', 'val_loss', 'val_acc']
+results_path = 'results/' + save_name + '.csv'
+result_fields = ['epoch', 'train_loss', 'tran_acc', 'perm_loss', 'perm_acc', 'val_loss', 'val_acc']
 with open( results_path, 'w' ) as f:
     writer = csv.writer(f)
     writer.writerow( result_fields )
@@ -76,21 +69,20 @@ for epoch in range(epochs):
     train_accuracy = 0
     with tqdm(train_loader, unit='batch') as tepoch:
         tepoch.set_description(f"Epoch {epoch} | trn")
-        for melodies, chords in tepoch:
-            melodies = melodies.to(dev)
-            chords = chords.to(dev)
+        for seq in tepoch:
+            seq = seq.to(dev)
             optimizer.zero_grad()
-            output = transformer(melodies, chords[:, :-1])
-            loss = criterion(output.contiguous().view(-1, tgt_vocab_size), chords[:, 1:].contiguous().view(-1))
+            output = transformer(seq[:, :-1])
+            loss = criterion(output.contiguous().view(-1, vocab_size), seq[:, 1:].contiguous().view(-1))
             loss.backward()
             optimizer.step()
             # update loss
-            samples_num += melodies.shape[0]
+            samples_num += seq.shape[0]
             running_loss += loss.item()
             train_loss = running_loss/samples_num
             # accuracy
             prediction = output.argmax(dim=2, keepdim=True).squeeze()
-            running_accuracy += (prediction == chords[:, 1:]).sum().item()/prediction.shape[1]
+            running_accuracy += (prediction == seq[:, 1:]).sum().item()/prediction.shape[1]
             train_accuracy = running_accuracy/samples_num
             tepoch.set_postfix(loss=train_loss, accuracy=train_accuracy) # tepoch.set_postfix(loss=loss.item(), accuracy=100. * accuracy)
     # validation
@@ -101,24 +93,22 @@ for epoch in range(epochs):
         running_accuracy = 0
         val_accuracy = 0
         print('validation...')
-        for melodies, chords in test_loader:
-            melodies = melodies.to(dev)
-            chords = chords.to(dev)
-            output = transformer(melodies, chords[:, :-1])
-            loss = criterion(output.contiguous().view(-1, tgt_vocab_size), chords[:, 1:].contiguous().view(-1))
+        for seq in test_loader:
+            seq = seq.to(dev)
+            output = transformer(seq[:, :-1])
+            loss = criterion(output.contiguous().view(-1, vocab_size), seq[:, 1:].contiguous().view(-1))
             # update loss
-            samples_num += melodies.shape[0]
+            samples_num += seq.shape[0]
             running_loss += loss.item()
             val_loss = running_loss/samples_num
             # accuracy
             prediction = output.argmax(dim=2, keepdim=True).squeeze()
-            running_accuracy += (prediction == chords[:, 1:]).sum().item()/prediction.shape[1]
+            running_accuracy += (prediction == seq[:, 1:]).sum().item()/prediction.shape[1]
             val_accuracy = running_accuracy/samples_num
         if best_val_loss > val_loss:
             print('saving!')
             best_val_loss = val_loss
-            torch.save(encoderModel.state_dict(), encoder_path)
-            torch.save(decoderModel.state_dict(), decoder_path)
+            torch.save(transformer.state_dict(), transformer_path)
         print(f'validation: accuracy={val_accuracy}, loss={val_loss}')
         # result_fields = ['epoch', 'train_loss', 'tran_acc', 'val_loss', 'val_acc']
         with open( results_path, 'a' ) as f:
