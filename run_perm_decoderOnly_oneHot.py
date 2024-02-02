@@ -1,4 +1,4 @@
-from data_utils.Datasets import PermTokenizedConcatChromaDataset
+from data_utils.Datasets import TokenizedConcatChromaDataset, PermTokenizedConcatChromaDataset
 import numpy as np
 from torch.utils.data import DataLoader, Subset
 import sys
@@ -13,7 +13,7 @@ import csv
 
 # load data
 npz_path = 'data/augmented_and_padded_data.npz'
-dataset = PermTokenizedConcatChromaDataset(npz_path)
+dataset = TokenizedConcatChromaDataset(npz_path)
 
 train_percentage = 0.9
 split_idx = int( len(dataset)*train_percentage )
@@ -33,10 +33,10 @@ permutation_loader = DataLoader(permutation_dataset, batch_size=batch_size, shuf
 
 # define model
 vocab_size = 2**12
-d_model = 512
+d_model = 1024
 num_heads = 16
 num_layers = 16
-d_ff = 512
+d_ff = 1024
 max_seq_length = 2*129 + 1 # include "start decoding" padding - all ones
 dropout = 0.3
 
