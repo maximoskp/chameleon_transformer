@@ -1,4 +1,4 @@
-from data_utils.Datasets import PermTokenizedConcatChromaDataset
+from data_utils.Datasets import SerializedConcatDataset, PermSerializedConcatDataset, BinarySerializer
 import numpy as np
 from torch.utils.data import DataLoader, Subset
 import sys
@@ -10,10 +10,23 @@ import torch
 from tqdm import tqdm
 import os
 import csv
+import pickle
+
+with open('tests/serializer.pkl', 'rb') as inp:
+    binser = pickle.load(inp)
+
+# define model
+vocab_size = binser.vocab_size
+d_model = 256
+num_heads = 4
+num_layers = 4
+d_ff = 256
+max_seq_length = binser.max_seq_length
+dropout = 0.3
 
 # load data
 npz_path = 'data/augmented_and_padded_data.npz'
-dataset = PermTokenizedConcatChromaDataset(npz_path)
+dataset = SerializedConcatDataset(npz_path, pad_to_length=max_seq_length)
 
 train_percentage = 0.9
 split_idx = int( len(dataset)*train_percentage )
@@ -21,24 +34,15 @@ split_idx = int( len(dataset)*train_percentage )
 train_set = Subset(dataset, range(0,split_idx))
 test_set = Subset(dataset, range(split_idx, len(dataset)))
 
-batch_size = 16
+batch_size = 8
 epochs = 1000
 
 train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True)
 
 # permutation data
-permutation_dataset = PermTokenizedConcatChromaDataset(npz_path)
+permutation_dataset = PermSerializedConcatDataset(npz_path, pad_to_length=max_seq_length)
 permutation_loader = DataLoader(permutation_dataset, batch_size=batch_size, shuffle=True)
-
-# define model
-vocab_size = 2**12
-d_model = 512
-num_heads = 16
-num_layers = 16
-d_ff = 512
-max_seq_length = 2*129 + 1 # include "start decoding" padding - all ones
-dropout = 0.3
 
 dev = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -52,7 +56,7 @@ optimizer = Adam(transformer.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-
 
 transformer.train()
 
-save_name = 'perm_decoderOnly_one_hot'
+save_name = 'perm_decoderOnly_serialized'
 
 # keep best validation loss for saving
 best_val_loss = np.inf
