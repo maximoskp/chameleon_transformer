@@ -3,7 +3,7 @@ from torch.utils.data import Dataset
 import numpy as np
 
 class BinarySerializer:
-    def __init__(self, pad_to_length=0):
+    def __init__(self, pad_to_length=0, left_padding=True):
         '''
         0: padding
         1: start_melody
@@ -26,6 +26,7 @@ class BinarySerializer:
         self.chord_offset = 18
         self.max_seq_length = 0
         self.pad_to_length = pad_to_length
+        self.left_padding = left_padding
         self.vocab_size = 30
     # end init
     def sequence_serialization(self, melody, chords):
@@ -49,9 +50,14 @@ class BinarySerializer:
         t.append(self.end_harmonizing)
         if len(t) > self.max_seq_length:
             self.max_seq_length = len(t)
-        while self.pad_to_length > len(t):
-            t.append(self.padding)
-        return np.array(t)
+        t_np = np.array(t)
+        if t_np.shape[0] < self.pad_to_length:
+            # left padding
+            if self.left_padding:
+                t_np = np.pad(t_np, (self.pad_to_length - t_np.shape[0], 0), constant_values=(self.padding, self.padding))
+            else:
+                t_np = np.pad(t_np, (0, self.pad_to_length - t_np.shape[0]), constant_values=(self.padding, self.padding))
+        return t_np
     # end sequence_serialization
 # end class BinarySerializer
 
@@ -161,11 +167,11 @@ class PermSerializedConcatDataset(Dataset):
 # end PermSerializedConcatDataset
 
 class SerializedConcatDataset(Dataset):
-    def __init__(self, npz_path, pad_to_length=1100):
+    def __init__(self, npz_path, pad_to_length=1100, left_padding=True):
         data = np.load(npz_path)
         self.melody_pcps = data['melody_pcps'].astype('float32')
         self.chord_pcps = data['chord_pcps'].astype('float32')
-        self.binser = BinarySerializer(pad_to_length=pad_to_length)
+        self.binser = BinarySerializer(pad_to_length=pad_to_length, left_padding=left_padding)
     # end __init__
     
     def __len__(self):
