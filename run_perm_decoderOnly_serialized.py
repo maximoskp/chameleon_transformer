@@ -17,10 +17,10 @@ with open('tests/serializer.pkl', 'rb') as inp:
 
 # define model
 vocab_size = binser.vocab_size
-d_model = 256
-num_heads = 4
-num_layers = 4
-d_ff = 256
+d_model = 512
+num_heads = 8
+num_layers = 8
+d_ff = 512
 max_seq_length = binser.max_seq_length
 print('vocab_size: ', max_seq_length)
 dropout = 0.3
@@ -53,7 +53,7 @@ transformer = transformer.to(dev)
 
 # train model
 criterion = CrossEntropyLoss(ignore_index=0)
-optimizer = Adam(transformer.parameters(), lr=0.00001, betas=(0.9, 0.98), eps=1e-9)
+optimizer = Adam(transformer.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
 
 transformer.train()
 
