@@ -36,17 +36,21 @@ class BinarySerializer:
             # check if melody pcs exist
             m = melody[i,:]
             nzm = np.nonzero(m)[0]
-            if len(nzm) > 0:
-                t.append( self.melody_segment_separator )
-                t.extend( nzm + self.melody_offset )
+            t.append( self.melody_segment_separator )
+            t.extend( nzm + self.melody_offset )
+            # check if no more melody
+            if np.sum( melody[i:,:] ) == 0:
+                break
         t.append(self.start_harmonizing)
         for i in range(chords.shape[0]):
             # check if chord pcs exist
             c = chords[i,:]
             nzc = np.nonzero(c)[0]
-            if len(nzc) > 0:
-                t.append( self.chord_segment_separator )
-                t.extend( nzc + self.chord_offset )
+            t.append( self.chord_segment_separator )
+            t.extend( nzc + self.chord_offset )
+            # check if no more chords
+            if np.sum( chords[i:,:] ) == 0:
+                break
         t.append(self.end_harmonizing)
         if len(t) > self.max_seq_length:
             self.max_seq_length = len(t)
@@ -143,11 +147,11 @@ class PermBinConcatChromaDataset(Dataset):
 # end PermBinConcatChromaDataset
 
 class PermSerializedConcatDataset(Dataset):
-    def __init__(self, npz_path, pad_to_length=1100):
+    def __init__(self, npz_path, pad_to_length=1100, left_padding=True):
         data = np.load(npz_path)
         self.melody_pcps = data['melody_pcps'].astype('float32')
         self.chord_pcps = data['chord_pcps'].astype('float32')
-        self.binser = BinarySerializer(pad_to_length=pad_to_length)
+        self.binser = BinarySerializer(pad_to_length=pad_to_length, left_padding=left_padding)
     # end __init__
     
     def __len__(self):
@@ -157,7 +161,7 @@ class PermSerializedConcatDataset(Dataset):
     def __getitem__(self, idx):
         m = self.melody_pcps[idx,:,:]
         c = self.chord_pcps[idx,:,:]
-        for i in range(m.shape[1]):
+        for i in range(m.shape[0]):
             p = np.random.permutation(12)
             m[i,:] = m[i,p]
             c[i,:] = c[i,p]
@@ -165,6 +169,30 @@ class PermSerializedConcatDataset(Dataset):
         return t
     # end __getitem__
 # end PermSerializedConcatDataset
+
+class ShiftSerializedConcatDataset(Dataset):
+    def __init__(self, npz_path, pad_to_length=1100, left_padding=True):
+        data = np.load(npz_path)
+        self.melody_pcps = data['melody_pcps'].astype('float32')
+        self.chord_pcps = data['chord_pcps'].astype('float32')
+        self.binser = BinarySerializer(pad_to_length=pad_to_length, left_padding=left_padding)
+    # end __init__
+    
+    def __len__(self):
+        return self.melody_pcps.shape[0]
+    # end __len__
+    
+    def __getitem__(self, idx):
+        m = self.melody_pcps[idx,:,:]
+        c = self.chord_pcps[idx,:,:]
+        # get length of c reducing its size
+        len_c = c.shape[0]
+        # random end, keep at least 1
+        idx = np.random.randint(len_c-1) + 1
+        t = self.binser.sequence_serialization( m , c[:idx,:] )
+        return t
+    # end __getitem__
+# end ShiftSerializedConcatDataset
 
 class SerializedConcatDataset(Dataset):
     def __init__(self, npz_path, pad_to_length=1100, left_padding=True):
