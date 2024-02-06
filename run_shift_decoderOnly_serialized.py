@@ -51,7 +51,7 @@ transformer = DecoderOnlyModel(vocab_size, d_model, num_heads, num_layers, d_ff,
 transformer = transformer.to(dev)
 
 # train model
-criterion = CrossEntropyLoss(ignore_index=0)
+criterion = CrossEntropyLoss(ignore_index=-100)
 optimizer = Adam(transformer.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
 
 transformer.train()
@@ -84,7 +84,15 @@ for epoch in range(epochs):
             seq = seq.to(dev)
             optimizer.zero_grad()
             output = transformer(seq[:, :-1])
-            loss = criterion(output.contiguous().view(-1, vocab_size), seq[:, 1:].contiguous().view(-1))
+            # error only on answer: target should mask all values before the start_harmonizing token
+            target = seq[:, 1:]
+            print(target)
+            # mask all values before start_harmonizing token
+            for ii in range(target.shape[0]):
+                tmp_idx = (target[ii, :] == binser.start_harmonizing).nonzero(as_tuple=True)[0]
+                target[ii,:tmp_idx] = -100
+            print(target)
+            loss = criterion(output.contiguous().view(-1, vocab_size), target.contiguous().view(-1))
             loss.backward()
             optimizer.step()
             # update loss
@@ -93,7 +101,8 @@ for epoch in range(epochs):
             train_loss = running_loss/samples_num
             # accuracy
             prediction = output.argmax(dim=2, keepdim=True).squeeze()
-            running_accuracy += (prediction == seq[:, 1:]).sum().item()/prediction.shape[1]
+            # running_accuracy += (prediction == seq[:, 1:]).sum().item()/prediction.shape[1]
+            running_accuracy += (prediction[target != -100] == target[target != -100]).sum().item()/(target != 100).sum().item()
             train_accuracy = running_accuracy/samples_num
             tepoch.set_postfix(loss=train_loss, accuracy=train_accuracy) # tepoch.set_postfix(loss=loss.item(), accuracy=100. * accuracy)
     # shifts
@@ -108,7 +117,13 @@ for epoch in range(epochs):
             seq = seq.to(dev)
             optimizer.zero_grad()
             output = transformer(seq[:, :-1])
-            loss = criterion(output.contiguous().view(-1, vocab_size), seq[:, 1:].contiguous().view(-1))
+            # error only on answer: target should mask all values before the start_harmonizing token
+            target = seq[:, 1:]
+            # mask all values before start_harmonizing token
+            for ii in range(target.shape[0]):
+                tmp_idx = target[ii, :] == binser.start_harmonizing
+                target[ii,:tmp_idx] = -100
+            loss = criterion(output.contiguous().view(-1, vocab_size), target.contiguous().view(-1))
             loss.backward()
             optimizer.step()
             # update loss
@@ -117,7 +132,7 @@ for epoch in range(epochs):
             shift_loss = running_loss/samples_num
             # accuracy
             prediction = output.argmax(dim=2, keepdim=True).squeeze()
-            running_accuracy += (prediction == seq[:, 1:]).sum().item()/prediction.shape[1]
+            running_accuracy += (prediction[target != -100] == target[target != -100]).sum().item()/(target != 100).sum().item()
             shift_accuracy = running_accuracy/samples_num
             tepoch.set_postfix(loss=shift_loss, accuracy=shift_accuracy) # tepoch.set_postfix(loss=loss.item(), accuracy=100. * accuracy)
     # validation
@@ -138,7 +153,8 @@ for epoch in range(epochs):
             val_loss = running_loss/samples_num
             # accuracy
             prediction = output.argmax(dim=2, keepdim=True).squeeze()
-            running_accuracy += (prediction == seq[:, 1:]).sum().item()/prediction.shape[1]
+            running_accuracy += (prediction[target != -100] == target[target != -100]).sum().item()/(target != 100).sum().item()
+            # running_accuracy += (prediction == seq[:, 1:]).sum().item()/prediction.shape[1]
             val_accuracy = running_accuracy/samples_num
         if best_val_loss > val_loss:
             print('saving!')
