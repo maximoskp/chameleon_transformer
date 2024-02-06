@@ -17,10 +17,10 @@ with open('tests/serializer.pkl', 'rb') as inp:
 
 # define model
 vocab_size = binser.vocab_size
-d_model = 512
-num_heads = 8
-num_layers = 8
-d_ff = 512
+d_model = 64
+num_heads = 2
+num_layers = 2
+d_ff = 64
 max_seq_length = binser.max_seq_length
 dropout = 0.3
 
@@ -34,15 +34,15 @@ split_idx = int( len(dataset)*train_percentage )
 train_set = Subset(dataset, range(0,split_idx))
 test_set = Subset(dataset, range(split_idx, len(dataset)))
 
-batch_size = 8
+batch_size = 4
 epochs = 1000
 
-train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
-test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True)
+train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, drop_last=True)
+test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True, drop_last=True)
 
 # shiftutation data
 shift_dataset = ShiftSerializedConcatDataset(npz_path, pad_to_length=max_seq_length)
-shift_loader = DataLoader(shift_dataset, batch_size=batch_size, shuffle=True)
+shift_loader = DataLoader(shift_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
 dev = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -81,17 +81,17 @@ for epoch in range(epochs):
     with tqdm(train_loader, unit='batch') as tepoch:
         tepoch.set_description(f"Epoch {epoch} | trn")
         for seq in tepoch:
+            target = seq[:, 1:].to(dev)
+            mask = target < binser.start_harmonizing
+            mask = mask.to(dev)
+            not_mask = torch.logical_not( mask )
+            not_mask = not_mask.to(dev)
+            target[mask] = -100
+            seq = seq.to(dev)
+            target = target.to(dev)
             seq = seq.to(dev)
             optimizer.zero_grad()
             output = transformer(seq[:, :-1])
-            # error only on answer: target should mask all values before the start_harmonizing token
-            target = seq[:, 1:]
-            print(target)
-            # mask all values before start_harmonizing token
-            for ii in range(target.shape[0]):
-                tmp_idx = (target[ii, :] == binser.start_harmonizing).nonzero(as_tuple=True)[0]
-                target[ii,:tmp_idx] = -100
-            print(target)
             loss = criterion(output.contiguous().view(-1, vocab_size), target.contiguous().view(-1))
             loss.backward()
             optimizer.step()
@@ -101,8 +101,7 @@ for epoch in range(epochs):
             train_loss = running_loss/samples_num
             # accuracy
             prediction = output.argmax(dim=2, keepdim=True).squeeze()
-            # running_accuracy += (prediction == seq[:, 1:]).sum().item()/prediction.shape[1]
-            running_accuracy += (prediction[target != -100] == target[target != -100]).sum().item()/(target != 100).sum().item()
+            running_accuracy += (prediction[not_mask] == target[not_mask]).sum().item()/not_mask.sum().item()
             train_accuracy = running_accuracy/samples_num
             tepoch.set_postfix(loss=train_loss, accuracy=train_accuracy) # tepoch.set_postfix(loss=loss.item(), accuracy=100. * accuracy)
     # shifts
@@ -114,15 +113,16 @@ for epoch in range(epochs):
     with tqdm(shift_loader, unit='batch') as tepoch:
         tepoch.set_description(f"Epoch {epoch} | prm")
         for seq in tepoch:
+            target = seq[:, 1:].to(dev)
+            mask = target < binser.start_harmonizing
+            mask = mask.to(dev)
+            not_mask = torch.logical_not( mask )
+            not_mask = not_mask.to(dev)
+            target[mask] = -100
             seq = seq.to(dev)
+            target = target.to(dev)
             optimizer.zero_grad()
             output = transformer(seq[:, :-1])
-            # error only on answer: target should mask all values before the start_harmonizing token
-            target = seq[:, 1:]
-            # mask all values before start_harmonizing token
-            for ii in range(target.shape[0]):
-                tmp_idx = target[ii, :] == binser.start_harmonizing
-                target[ii,:tmp_idx] = -100
             loss = criterion(output.contiguous().view(-1, vocab_size), target.contiguous().view(-1))
             loss.backward()
             optimizer.step()
@@ -132,7 +132,7 @@ for epoch in range(epochs):
             shift_loss = running_loss/samples_num
             # accuracy
             prediction = output.argmax(dim=2, keepdim=True).squeeze()
-            running_accuracy += (prediction[target != -100] == target[target != -100]).sum().item()/(target != 100).sum().item()
+            running_accuracy += (prediction[not_mask] == target[not_mask]).sum().item()/not_mask.sum().item()
             shift_accuracy = running_accuracy/samples_num
             tepoch.set_postfix(loss=shift_loss, accuracy=shift_accuracy) # tepoch.set_postfix(loss=loss.item(), accuracy=100. * accuracy)
     # validation
@@ -144,17 +144,23 @@ for epoch in range(epochs):
         val_accuracy = 0
         print('validation...')
         for seq in test_loader:
+            target = seq[:, 1:].to(dev)
+            mask = target < binser.start_harmonizing
+            mask = mask.to(dev)
+            not_mask = torch.logical_not( mask )
+            not_mask = not_mask.to(dev)
+            target[mask] = -100
             seq = seq.to(dev)
+            target = target.to(dev)
             output = transformer(seq[:, :-1])
-            loss = criterion(output.contiguous().view(-1, vocab_size), seq[:, 1:].contiguous().view(-1))
+            loss = criterion(output.contiguous().view(-1, vocab_size), target.contiguous().view(-1))
             # update loss
             samples_num += seq.shape[0]
             running_loss += loss.item()
             val_loss = running_loss/samples_num
             # accuracy
             prediction = output.argmax(dim=2, keepdim=True).squeeze()
-            running_accuracy += (prediction[target != -100] == target[target != -100]).sum().item()/(target != 100).sum().item()
-            # running_accuracy += (prediction == seq[:, 1:]).sum().item()/prediction.shape[1]
+            running_accuracy += (prediction[not_mask] == target[not_mask]).sum().item()/not_mask.sum().item()
             val_accuracy = running_accuracy/samples_num
         if best_val_loss > val_loss:
             print('saving!')

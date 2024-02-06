@@ -8,22 +8,22 @@ class BinarySerializer:
         0: padding
         1: start_melody
         2: melody segment seperator
-        3: chord segment separator
-        4: start harmonizing
-        5: end harmonizing
-        6 to 6+11=17: melody pitch class
-        18 to 18+11=29: chord pitch class
+        3 to 3+11=14: melody pitch class
+        15: start harmonizing
+        16: chord segment separator
+        17 to 17+11=28: chord pitch class
+        29: end harmonizing
         
         vocab_size = 30
         '''
         self.padding = 0
         self.start_melody = 1
         self.melody_segment_separator = 2
-        self.chord_segment_separator = 3
-        self.start_harmonizing = 4
-        self.end_harmonizing = 5
-        self.melody_offset = 6
-        self.chord_offset = 18
+        self.melody_offset = 3
+        self.start_harmonizing = 15
+        self.chord_segment_separator = 16
+        self.chord_offset = 17
+        self.end_harmonizing = 29
         self.max_seq_length = 0
         self.pad_to_length = pad_to_length
         self.left_padding = left_padding
