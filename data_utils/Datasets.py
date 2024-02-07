@@ -30,38 +30,41 @@ class BinarySerializer:
         self.vocab_size = 30
     # end init
     def sequence_serialization(self, melody, chords):
-        t = []
-        t.append(self.start_melody)
+        seq_in = []
+        seq_in.append(self.start_melody)
         for i in range(melody.shape[0]):
             # check if melody pcs exist
             m = melody[i,:]
             nzm = np.nonzero(m)[0]
-            t.append( self.melody_segment_separator )
-            t.extend( nzm + self.melody_offset )
+            seq_in.append( self.melody_segment_separator )
+            seq_in.extend( nzm + self.melody_offset )
             # check if no more melody
             if np.sum( melody[i:,:] ) == 0:
                 break
-        t.append(self.start_harmonizing)
+        seq_in.append(self.start_harmonizing)
         for i in range(chords.shape[0]):
             # check if chord pcs exist
             c = chords[i,:]
             nzc = np.nonzero(c)[0]
-            t.append( self.chord_segment_separator )
-            t.extend( nzc + self.chord_offset )
+            seq_in.append( self.chord_segment_separator )
+            seq_in.extend( nzc + self.chord_offset )
             # check if no more chords
             if np.sum( chords[i:,:] ) == 0:
                 break
-        t.append(self.end_harmonizing)
-        if len(t) > self.max_seq_length:
-            self.max_seq_length = len(t)
-        t_np = np.array(t)
-        if t_np.shape[0] < self.pad_to_length:
+        seq_in.append(self.end_harmonizing)
+        if len(seq_in) > self.max_seq_length:
+            self.max_seq_length = len(seq_in)
+        seq_in_np = np.array(seq_in)
+        if seq_in_np.shape[0] < self.pad_to_length:
             # left padding
             if self.left_padding:
-                t_np = np.pad(t_np, (self.pad_to_length - t_np.shape[0], 0), constant_values=(self.padding, self.padding))
+                seq_in_np = np.pad(seq_in_np, (self.pad_to_length - seq_in_np.shape[0], 0), constant_values=(self.padding, self.padding))
             else:
-                t_np = np.pad(t_np, (0, self.pad_to_length - t_np.shape[0]), constant_values=(self.padding, self.padding))
-        return t_np
+                seq_in_np = np.pad(seq_in_np, (0, self.pad_to_length - seq_in_np.shape[0]), constant_values=(self.padding, self.padding))
+        # masks
+        target_masked = np.array(seq_in_np[1:])
+        target_masked[target_masked < self.start_harmonizing] = -100
+        return seq_in_np, target_masked
     # end sequence_serialization
 # end class BinarySerializer
 
@@ -165,8 +168,8 @@ class PermSerializedConcatDataset(Dataset):
             p = np.random.permutation(12)
             m[i,:] = m[i,p]
             c[i,:] = c[i,p]
-        t = self.binser.sequence_serialization( m , c )
-        return t
+        t, t_masked = self.binser.sequence_serialization( m , c )
+        return t, t_masked
     # end __getitem__
 # end PermSerializedConcatDataset
 
@@ -189,8 +192,8 @@ class ShiftSerializedConcatDataset(Dataset):
         len_c = c.shape[0]
         # random end, keep at least 1
         idx = np.random.randint(len_c-1) + 1
-        t = self.binser.sequence_serialization( m , c[:idx,:] )
-        return t
+        t, t_masked = self.binser.sequence_serialization( m , c[:idx,:] )
+        return t, t_masked
     # end __getitem__
 # end ShiftSerializedConcatDataset
 
@@ -209,7 +212,7 @@ class SerializedConcatDataset(Dataset):
     def __getitem__(self, idx):
         m = self.melody_pcps[idx,:,:]
         c = self.chord_pcps[idx,:,:]
-        t = self.binser.sequence_serialization( m , c )
-        return t
+        t, t_masked = self.binser.sequence_serialization( m , c )
+        return t, t_masked
     # end __getitem__
 # end SerializedConcatDataset
