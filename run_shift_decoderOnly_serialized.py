@@ -34,15 +34,15 @@ split_idx = int( len(dataset)*train_percentage )
 train_set = Subset(dataset, range(0,split_idx))
 test_set = Subset(dataset, range(split_idx, len(dataset)))
 
-batch_size = 4
+batch_size = 8
 epochs = 1000
 
-train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, drop_last=True)
-test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True, drop_last=True)
+train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
+test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True)
 
 # shiftutation data
 shift_dataset = ShiftSerializedConcatDataset(npz_path, pad_to_length=max_seq_length)
-shift_loader = DataLoader(shift_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+shift_loader = DataLoader(shift_dataset, batch_size=batch_size, shuffle=True)
 
 dev = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -89,7 +89,6 @@ for epoch in range(epochs):
             target[mask] = -100
             seq = seq.to(dev)
             target = target.to(dev)
-            seq = seq.to(dev)
             optimizer.zero_grad()
             output = transformer(seq[:, :-1])
             loss = criterion(output.contiguous().view(-1, vocab_size), target.contiguous().view(-1))
