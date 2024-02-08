@@ -17,10 +17,10 @@ with open('tests/serializer.pkl', 'rb') as inp:
 
 # define model
 vocab_size = binser.vocab_size
-d_model = 64
-num_heads = 2
-num_layers = 2
-d_ff = 64
+d_model = 512
+num_heads = 8
+num_layers = 8
+d_ff = 512
 max_seq_length = binser.max_seq_length
 dropout = 0.3
 
