@@ -197,6 +197,38 @@ class ShiftSerializedConcatDataset(Dataset):
     # end __getitem__
 # end ShiftSerializedConcatDataset
 
+class MelBoostSerializedConcatDataset(Dataset):
+    def __init__(self, npz_path, pad_to_length=1100, left_padding=True, remove_percentage=0.3):
+        data = np.load(npz_path)
+        self.melody_pcps = data['melody_pcps'].astype('float32')
+        self.chord_pcps = data['chord_pcps'].astype('float32')
+        self.remove_percentage = remove_percentage
+        self.binser = BinarySerializer(pad_to_length=pad_to_length, left_padding=left_padding)
+    # end __init__
+    
+    def __len__(self):
+        return self.melody_pcps.shape[0]
+    # end __len__
+    
+    def __getitem__(self, idx):
+        m = self.melody_pcps[idx,:,:]
+        c = self.chord_pcps[idx,:,:]
+        # remove random components of the melody
+        # find non-zero indexes
+        nnz = np.nonzero(m)
+        # get number of non zero
+        num_nnz = nnz[0].size
+        # remove percentage
+        num_remove = int(num_nnz*self.remove_percentage)
+        # permutate idxs
+        perm_idxs = np.random.permutation(num_nnz)
+        # zero-out first permutated
+        m[ nnz[0][perm_idxs[:num_remove]] , nnz[1][perm_idxs[:num_remove]] ] = 0
+        t, t_masked = self.binser.sequence_serialization( m , c )
+        return t, t_masked
+    # end __getitem__
+# end MelBoostSerializedConcatDataset
+
 class SerializedConcatDataset(Dataset):
     def __init__(self, npz_path, pad_to_length=1100, left_padding=True):
         data = np.load(npz_path)
