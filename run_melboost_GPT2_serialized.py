@@ -27,7 +27,7 @@ dropout = 0.3
 
 # load data
 npz_path = 'data/augmented_and_padded_data.npz'
-dataset = SerializedConcatDataset(npz_path, pad_to_length=max_seq_length)
+dataset = SerializedConcatDataset(npz_path, pad_to_length=max_seq_length, left_padding=False)
 
 train_percentage = 0.9
 split_idx = int( len(dataset)*train_percentage )
@@ -42,7 +42,7 @@ train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, drop_l
 test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True, drop_last=True)
 
 # shiftutation data
-shift_dataset = MelBoostSerializedConcatDataset(npz_path, pad_to_length=max_seq_length)
+shift_dataset = MelBoostSerializedConcatDataset(npz_path, pad_to_length=max_seq_length, left_padding=False)
 shift_loader = DataLoader(shift_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
 dev = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
