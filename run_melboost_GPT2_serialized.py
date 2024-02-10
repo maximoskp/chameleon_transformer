@@ -18,10 +18,10 @@ with open('tests/serializer.pkl', 'rb') as inp:
 
 # define model
 vocab_size = binser.vocab_size
-d_model = 64
-num_heads = 2
-num_layers = 2
-d_ff = 64
+d_model = 512
+num_heads = 8
+num_layers = 8
+d_ff = 512
 max_seq_length = binser.max_seq_length
 dropout = 0.3
 
@@ -35,7 +35,7 @@ split_idx = int( len(dataset)*train_percentage )
 train_set = Subset(dataset, range(0,split_idx))
 test_set = Subset(dataset, range(split_idx, len(dataset)))
 
-batch_size = 2
+batch_size = 8
 epochs = 1000
 
 train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, drop_last=True)
@@ -87,76 +87,76 @@ with open( results_path, 'w' ) as f:
 for epoch in range(epochs):
     train_loss = 0
     running_loss = 0
-    samples_num = 0
+    batch_num = 0
     running_accuracy = 0
     train_accuracy = 0
     with tqdm(train_loader, unit='batch') as tepoch:
         tepoch.set_description(f"Epoch {epoch} | trn")
         for seq, masked_target in tepoch:
             seq = seq.to(dev)
-            output = transformer(seq[:, :-1])
             masked_target = masked_target.to(dev)
             optimizer.zero_grad()
-            loss = criterion(output.contiguous().view(-1, vocab_size), masked_target.contiguous().view(-1))
+            output = transformer(seq[:, :-1], attention_mask=seq[:,:-1] != 0)
+            loss = criterion(output.logits.contiguous().view(-1, vocab_size), masked_target.contiguous().view(-1))
             loss.backward()
             optimizer.step()
             # update loss
-            samples_num += seq.shape[0]
+            batch_num += 1
             running_loss += loss.item()
-            train_loss = running_loss/samples_num
+            train_loss = running_loss/batch_num
             # accuracy
-            prediction = output.argmax(dim=2, keepdim=True).squeeze()
+            prediction = output.logits.argmax(dim=2, keepdim=True).squeeze()
             running_accuracy += (prediction[masked_target >= binser.start_harmonizing] == masked_target[masked_target >= binser.start_harmonizing]).sum().item()/(masked_target >= binser.start_harmonizing).sum().item()
-            train_accuracy = running_accuracy/samples_num
+            train_accuracy = running_accuracy/batch_num
             torch.set_printoptions(threshold=10_000)
             tepoch.set_postfix(loss=train_loss, accuracy=train_accuracy) # tepoch.set_postfix(loss=loss.item(), accuracy=100. * accuracy)
     # shifts
     shift_loss = 0
     running_loss = 0
-    samples_num = 0
+    batch_num = 0
     running_accuracy = 0
     shift_accuracy = 0
     with tqdm(shift_loader, unit='batch') as tepoch:
         tepoch.set_description(f"Epoch {epoch} | prm")
         for seq, masked_target in tepoch:
             seq = seq.to(dev)
-            output = transformer(seq[:, :-1])
+            output = transformer(seq[:, :-1], attention_mask=seq[:,:-1] != 0)
             masked_target = masked_target.to(dev)
             optimizer.zero_grad()
-            loss = criterion(output.contiguous().view(-1, vocab_size), masked_target.contiguous().view(-1))
+            loss = criterion(output.logits.contiguous().view(-1, vocab_size), masked_target.contiguous().view(-1))
             loss.backward()
             optimizer.step()
             # update loss
-            samples_num += seq.shape[0]
+            batch_num += 1
             running_loss += loss.item()
-            shift_loss = running_loss/samples_num
+            shift_loss = running_loss/batch_num
             # accuracy
-            prediction = output.argmax(dim=2, keepdim=True).squeeze()
+            prediction = output.logits.argmax(dim=2, keepdim=True).squeeze()
             running_accuracy += (prediction[masked_target >= binser.start_harmonizing] == masked_target[masked_target >= binser.start_harmonizing]).sum().item()/(masked_target >= binser.start_harmonizing).sum().item()
-            shift_accuracy = running_accuracy/samples_num
+            shift_accuracy = running_accuracy/batch_num
             tepoch.set_postfix(loss=shift_loss, accuracy=shift_accuracy) # tepoch.set_postfix(loss=loss.item(), accuracy=100. * accuracy)
     # validation
     with torch.no_grad():
         val_loss = 0
         running_loss = 0
-        samples_num = 0
+        batch_num = 0
         running_accuracy = 0
         val_accuracy = 0
         print('validation...')
         for seq, masked_target in tepoch:
             seq = seq.to(dev)
-            output = transformer(seq[:, :-1])
+            output = transformer(seq[:, :-1], attention_mask=seq[:,:-1] != 0)
             masked_target = masked_target.to(dev)
             optimizer.zero_grad()
-            loss = criterion(output.contiguous().view(-1, vocab_size), masked_target.contiguous().view(-1))
+            loss = criterion(output.logits.contiguous().view(-1, vocab_size), masked_target.contiguous().view(-1))
             # update loss
-            samples_num += seq.shape[0]
+            batch_num += 1
             running_loss += loss.item()
-            val_loss = running_loss/samples_num
+            val_loss = running_loss/batch_num
             # accuracy
-            prediction = output.argmax(dim=2, keepdim=True).squeeze()
+            prediction = output.logits.argmax(dim=2, keepdim=True).squeeze()
             running_accuracy += (prediction[masked_target >= binser.start_harmonizing] == masked_target[masked_target >= binser.start_harmonizing]).sum().item()/(masked_target >= binser.start_harmonizing).sum().item()
-            val_accuracy = running_accuracy/samples_num
+            val_accuracy = running_accuracy/batch_num
         if best_val_loss > val_loss:
             print('saving!')
             best_val_loss = val_loss
