@@ -66,6 +66,32 @@ class BinarySerializer:
         target_masked[target_masked < self.start_harmonizing] = -100
         return seq_in_np, target_masked
     # end sequence_serialization
+
+    def indexes2labels(self, idxs):
+        # input: assumes a list or numpy array of indexes between 0 and self.vocab_size
+        # output: a string of labels that correspond to each index
+        labels = []
+        for i in idxs:
+            if i == self.padding:
+                labels.append( 'pad' )
+            elif i == self.start_melody:
+                labels.append( 'm_start' )
+            elif i == self.start_harmonizing:
+                labels.append( 'h_start' )
+            elif i == self.melody_segment_separator:
+                labels.append( 'm_seg' )
+            elif i == self.chord_segment_separator:
+                labels.append( 'c_seg' )
+            elif i == self.end_harmonizing:
+                labels.append( 'end' )
+            elif i >= self.melody_offset and i < self.start_harmonizing:
+                labels.append( 'm_' + str(i - self.melody_offset) )
+            elif i >= self.chord_offset and i < self.end_harmonizing:
+                labels.append( 'c_' + str(i - self.chord_offset) )
+            else:
+                labels.append( 'ERROR' )
+        return labels
+    # end indexes2labels
 # end class BinarySerializer
 
 class TokenizedConcatChromaDataset(Dataset):
