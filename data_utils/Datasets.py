@@ -114,10 +114,14 @@ class BinarySerializer:
         for i in idxs:
             if i == self.padding:
                 # pad should not be part of the input
-                tmp__error_message = 'ERROR-pad: pad in input sequence'
-                print(tmp__error_message)
-                messages.append(tmp__error_message)
-                pass
+                tmp_error_message = 'WARNING-pad: pad in input sequence'
+                print(tmp_error_message)
+                messages.append(tmp_error_message)
+                # however, it may be an empty melody or chord segment...
+                if processing_melody:
+                    mel.append(np.zeros(12))
+                else:
+                    chr.append(np.zeros(12))
             elif i == self.start_melody:
                 if not processing_melody:
                     tmp__error_message = 'ERROR-start_melody: currently processing chords'
@@ -164,7 +168,7 @@ class BinarySerializer:
                 tmp__error_message = 'ERROR-unkown label'
                 print(tmp__error_message)
                 messages.append(tmp__error_message)
-        return {'melody': mel, 'chords': chr, 'error_messages':messages}
+        return {'melody': np.array(mel), 'chords': np.array(chr), 'error_messages':messages}
     # end indexes2binary
 # end class BinarySerializer
 
