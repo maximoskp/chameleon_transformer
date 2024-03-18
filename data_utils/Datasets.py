@@ -92,6 +92,84 @@ class BinarySerializer:
                 labels.append( 'ERROR' )
         return labels
     # end indexes2labels
+
+    def indexes2binary(self, idxs):
+        # input: assumes a list or numpy array of indexes between 0 and self.vocab_size.
+        # Additionally, input should be clearly devided in a melody and chords segment,
+        # divided by a self.start_harmonizing index.
+        # 
+        # output:  a dict that inlcludes a message with information about errors and
+        # two matrices of shape 12xM and 12xC, where M and C are the
+        # length of the melody and chords respectively. If the idxs (coming from
+        # a generative system) are correct, M==C, else mitigations should be followed
+        # at a later stage of the pipeline.
+        mel = []
+        chr = []
+        curr_mel = np.zeros(12)
+        curr_chr = np.zeros(12)
+        messages = []
+        melody_started = False
+        chord_started = False
+        processing_melody = True
+        for i in idxs:
+            if i == self.padding:
+                # pad should not be part of the input
+                tmp_error_message = 'WARNING-pad: pad in input sequence'
+                print(tmp_error_message)
+                messages.append(tmp_error_message)
+                # however, it may be an empty melody or chord segment...
+                if processing_melody:
+                    mel.append(np.zeros(12))
+                else:
+                    chr.append(np.zeros(12))
+            elif i == self.start_melody:
+                if not processing_melody:
+                    tmp__error_message = 'ERROR-start_melody: currently processing chords'
+                    print(tmp__error_message)
+                    messages.append(tmp__error_message)
+                    pass
+            elif i == self.start_harmonizing:
+                if not processing_melody:
+                    tmp__error_message = 'ERROR-start_harmonizing: already harmonizing'
+                    print(tmp__error_message)
+                    messages.append(tmp__error_message)
+                    pass
+                else:
+                    processing_melody = False
+            elif i == self.melody_segment_separator:
+                if not processing_melody:
+                    tmp__error_message = 'ERROR-melody_segment_separator: not in processing_melody'
+                    print(tmp__error_message)
+                    messages.append(tmp__error_message)
+                    pass
+                else:
+                    if melody_started:
+                        mel.append( curr_mel )
+                    melody_started = True
+                    curr_mel = np.zeros(12)
+            elif i == self.chord_segment_separator:
+                if processing_melody:
+                    tmp__error_message = 'ERROR-chord_segment_separator: in processing_melody'
+                    print(tmp__error_message)
+                    messages.append(tmp__error_message)
+                    pass
+                else:
+                    if chord_started:
+                        chr.append( curr_chr )
+                    chord_started = True
+                    curr_chr = np.zeros(12)
+            elif i == self.end_harmonizing:
+                pass
+            elif i >= self.melody_offset and i < self.start_harmonizing:
+                curr_mel[i - self.melody_offset] = 1
+            elif i >= self.chord_offset and i < self.end_harmonizing:
+                curr_chr[i - self.chord_offset] = 1
+            else:
+                tmp__error_message = 'ERROR-unkown label'
+                print(tmp__error_message)
+                messages.append(tmp__error_message)
+        return {'melody': np.array(mel), 'chords': np.array(chr), 'error_messages':messages}
+    # end indexes2binary
 # end class BinarySerializer
 
 class TokenizedConcatChromaDataset(Dataset):
