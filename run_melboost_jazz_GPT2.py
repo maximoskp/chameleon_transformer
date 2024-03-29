@@ -68,7 +68,7 @@ optimizer = Adam(transformer.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-
 
 transformer.train()
 
-save_name = 'melboost_GPT2_serialized'
+save_name = 'melboost_jazz_GPT2'
 
 # keep best validation loss for saving
 best_val_loss = np.inf
