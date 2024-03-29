@@ -2,6 +2,7 @@ data/
 saved_models/
 results/
 figs/
+figs_4x4/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
