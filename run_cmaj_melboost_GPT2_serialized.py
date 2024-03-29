@@ -13,7 +13,7 @@ import pickle
 
 from transformers import AutoConfig, GPT2LMHeadModel
 
-with open('tests/serializer.pkl', 'rb') as inp:
+with open('tests/serializer_cmaj_nottingham.pkl', 'rb') as inp:
     binser = pickle.load(inp)
 
 # define model

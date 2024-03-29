@@ -13,7 +13,7 @@ import pickle
 
 from transformers import AutoConfig, GPT2LMHeadModel
 
-with open('tests/serializer.pkl', 'rb') as inp:
+with open('tests/serializer_jazz.pkl', 'rb') as inp:
     binser = pickle.load(inp)
 
 # define model
@@ -35,7 +35,7 @@ split_idx = int( len(dataset)*train_percentage )
 train_set = Subset(dataset, range(0,split_idx))
 test_set = Subset(dataset, range(split_idx, len(dataset)))
 
-batch_size = 8
+batch_size = 4
 epochs = 1000
 
 train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, drop_last=True)
