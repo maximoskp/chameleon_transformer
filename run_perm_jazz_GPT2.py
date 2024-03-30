@@ -1,4 +1,4 @@
-from data_utils.Datasets import SerializedConcatDataset, MelBoostSerializedConcatDataset, BinarySerializer
+from data_utils.Datasets import SerializedConcatDataset, PermSerializedConcatDataset, BinarySerializer
 import numpy as np
 from torch.utils.data import DataLoader, Subset
 import sys
@@ -13,7 +13,7 @@ import pickle
 
 from transformers import AutoConfig, GPT2LMHeadModel
 
-with open('tests/serializer_cmaj_nottingham.pkl', 'rb') as inp:
+with open('tests/serializer_jazz.pkl', 'rb') as inp:
     binser = pickle.load(inp)
 
 # define model
@@ -26,7 +26,7 @@ max_seq_length = binser.max_seq_length
 dropout = 0.3
 
 # load data
-npz_path = 'data/nottingham_c_major.npz'
+npz_path = 'data/augmented_and_padded_data.npz'
 dataset = SerializedConcatDataset(npz_path, pad_to_length=max_seq_length, left_padding=False)
 
 train_percentage = 0.9
@@ -35,17 +35,17 @@ split_idx = int( len(dataset)*train_percentage )
 train_set = Subset(dataset, range(0,split_idx))
 test_set = Subset(dataset, range(split_idx, len(dataset)))
 
-batch_size = 2
+batch_size = 4
 epochs = 1000
 
 train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, drop_last=True)
 test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True, drop_last=True)
 
 # shiftutation data
-shift_dataset = MelBoostSerializedConcatDataset(npz_path, pad_to_length=max_seq_length, left_padding=False)
+shift_dataset = PermSerializedConcatDataset(npz_path, pad_to_length=max_seq_length, left_padding=False)
 shift_loader = DataLoader(shift_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
-dev = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+dev = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 config = AutoConfig.from_pretrained(
     "gpt2",
@@ -68,7 +68,7 @@ optimizer = Adam(transformer.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-
 
 transformer.train()
 
-save_name = 'melboost_cmaj_nottingham_GPT2'
+save_name = 'perm_jazz_GPT2'
 
 # keep best validation loss for saving
 best_val_loss = np.inf
