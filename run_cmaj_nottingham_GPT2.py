@@ -41,11 +41,11 @@ epochs = 1000
 train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, drop_last=True)
 test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True, drop_last=True)
 
-# shiftutation data
-shift_dataset = MelBoostSerializedConcatDataset(npz_path, pad_to_length=max_seq_length, left_padding=False)
-shift_loader = DataLoader(shift_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+# # shiftutation data
+# shift_dataset = MelBoostSerializedConcatDataset(npz_path, pad_to_length=max_seq_length, left_padding=False)
+# shift_loader = DataLoader(shift_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
-dev = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+dev = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 
 config = AutoConfig.from_pretrained(
     "gpt2",
@@ -68,7 +68,8 @@ optimizer = Adam(transformer.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-
 
 transformer.train()
 
-save_name = 'melboost_cmaj_nottingham_GPT2'
+save_name = 'cmaj_nottingham_GPT2'
+# save_name = 'melboost_cmaj_nottingham_GPT2'
 
 # keep best validation loss for saving
 best_val_loss = np.inf
@@ -79,7 +80,8 @@ os.makedirs(save_dir, exist_ok=True)
 # save results
 os.makedirs('results', exist_ok=True)
 results_path = 'results/' + save_name + '.csv'
-result_fields = ['epoch', 'train_loss', 'tran_acc', 'shift_loss', 'shift_acc', 'val_loss', 'val_acc']
+# result_fields = ['epoch', 'train_loss', 'tran_acc', 'shift_loss', 'shift_acc', 'val_loss', 'val_acc']
+result_fields = ['epoch', 'train_loss', 'tran_acc', 'val_loss', 'val_acc']
 with open( results_path, 'w' ) as f:
     writer = csv.writer(f)
     writer.writerow( result_fields )
@@ -110,31 +112,31 @@ for epoch in range(epochs):
             train_accuracy = running_accuracy/batch_num
             torch.set_printoptions(threshold=10_000)
             tepoch.set_postfix(loss=train_loss, accuracy=train_accuracy) # tepoch.set_postfix(loss=loss.item(), accuracy=100. * accuracy)
-    # shifts
-    shift_loss = 0
-    running_loss = 0
-    batch_num = 0
-    running_accuracy = 0
-    shift_accuracy = 0
-    with tqdm(shift_loader, unit='batch') as tepoch:
-        tepoch.set_description(f"Epoch {epoch} | prm")
-        for seq, masked_target in tepoch:
-            seq = seq.to(dev)
-            output = transformer(seq[:, :-1], attention_mask=seq[:,:-1] != 0)
-            masked_target = masked_target.to(dev)
-            optimizer.zero_grad()
-            loss = criterion(output.logits.contiguous().view(-1, vocab_size), masked_target.contiguous().view(-1))
-            loss.backward()
-            optimizer.step()
-            # update loss
-            batch_num += 1
-            running_loss += loss.item()
-            shift_loss = running_loss/batch_num
-            # accuracy
-            prediction = output.logits.argmax(dim=2, keepdim=True).squeeze()
-            running_accuracy += (prediction[masked_target >= binser.start_harmonizing] == masked_target[masked_target >= binser.start_harmonizing]).sum().item()/(masked_target >= binser.start_harmonizing).sum().item()
-            shift_accuracy = running_accuracy/batch_num
-            tepoch.set_postfix(loss=shift_loss, accuracy=shift_accuracy) # tepoch.set_postfix(loss=loss.item(), accuracy=100. * accuracy)
+    # # shifts
+    # shift_loss = 0
+    # running_loss = 0
+    # batch_num = 0
+    # running_accuracy = 0
+    # shift_accuracy = 0
+    # with tqdm(shift_loader, unit='batch') as tepoch:
+    #     tepoch.set_description(f"Epoch {epoch} | prm")
+    #     for seq, masked_target in tepoch:
+    #         seq = seq.to(dev)
+    #         output = transformer(seq[:, :-1], attention_mask=seq[:,:-1] != 0)
+    #         masked_target = masked_target.to(dev)
+    #         optimizer.zero_grad()
+    #         loss = criterion(output.logits.contiguous().view(-1, vocab_size), masked_target.contiguous().view(-1))
+    #         loss.backward()
+    #         optimizer.step()
+    #         # update loss
+    #         batch_num += 1
+    #         running_loss += loss.item()
+    #         shift_loss = running_loss/batch_num
+    #         # accuracy
+    #         prediction = output.logits.argmax(dim=2, keepdim=True).squeeze()
+    #         running_accuracy += (prediction[masked_target >= binser.start_harmonizing] == masked_target[masked_target >= binser.start_harmonizing]).sum().item()/(masked_target >= binser.start_harmonizing).sum().item()
+    #         shift_accuracy = running_accuracy/batch_num
+    #         tepoch.set_postfix(loss=shift_loss, accuracy=shift_accuracy) # tepoch.set_postfix(loss=loss.item(), accuracy=100. * accuracy)
     # validation
     with torch.no_grad():
         val_loss = 0
@@ -165,4 +167,5 @@ for epoch in range(epochs):
         # result_fields = ['epoch', 'train_loss', 'tran_acc', 'shift_loss', 'shift_acc', 'val_loss', 'val_acc']
         with open( results_path, 'a' ) as f:
             writer = csv.writer(f)
-            writer.writerow( [epoch, train_loss, train_accuracy, shift_loss, shift_accuracy, val_loss, val_accuracy] )
+            # writer.writerow( [epoch, train_loss, train_accuracy, shift_loss, shift_accuracy, val_loss, val_accuracy] )
+            writer.writerow( [epoch, train_loss, train_accuracy, val_loss, val_accuracy] )
