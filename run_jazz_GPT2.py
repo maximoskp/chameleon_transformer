@@ -1,6 +1,6 @@
 from data_utils.Datasets import SerializedConcatDataset, BinarySerializer
 import numpy as np
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Subset, random_split
 import sys
 sys.path.insert(0, '..')
 from torch.nn import CrossEntropyLoss
@@ -32,8 +32,13 @@ dataset = SerializedConcatDataset(npz_path, pad_to_length=max_seq_length, left_p
 train_percentage = 0.9
 split_idx = int( len(dataset)*train_percentage )
 
-train_set = Subset(dataset, range(0,split_idx))
-test_set = Subset(dataset, range(split_idx, len(dataset)))
+# shuffle before split
+generator = torch.Generator().manual_seed(42)
+
+train_set, test_set = random_split(dataset, [split_idx, len(dataset)-split_idx], generator=generator)
+
+# train_set = Subset(dataset, range(0,split_idx))
+# test_set = Subset(dataset, range(split_idx, len(dataset)))
 
 batch_size = 4
 epochs = 1000
@@ -41,7 +46,7 @@ epochs = 1000
 train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, drop_last=True)
 test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True, drop_last=True)
 
-# shiftutation data
+# no permutation just another copy of the dataset
 shift_dataset = SerializedConcatDataset(npz_path, pad_to_length=max_seq_length, left_padding=False)
 shift_loader = DataLoader(shift_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
