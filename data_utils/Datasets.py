@@ -35,22 +35,22 @@ class BinarySerializer:
         for i in range(melody.shape[0]):
             # check if melody pcs exist
             m = melody[i,:]
-            nzm = np.nonzero(m)[0]
-            seq_in.append( self.melody_segment_separator )
-            seq_in.extend( nzm + self.melody_offset )
             # check if no more melody
             if np.sum( melody[i:,:] ) == 0:
                 break
+            nzm = np.nonzero(m)[0]
+            seq_in.append( self.melody_segment_separator )
+            seq_in.extend( nzm + self.melody_offset )
         seq_in.append(self.start_harmonizing)
         for i in range(chords.shape[0]):
             # check if chord pcs exist
             c = chords[i,:]
-            nzc = np.nonzero(c)[0]
-            seq_in.append( self.chord_segment_separator )
-            seq_in.extend( nzc + self.chord_offset )
             # check if no more chords
             if np.sum( chords[i:,:] ) == 0:
                 break
+            nzc = np.nonzero(c)[0]
+            seq_in.append( self.chord_segment_separator )
+            seq_in.extend( nzc + self.chord_offset )
         seq_in.append(self.end_harmonizing)
         if len(seq_in) > self.max_seq_length:
             self.max_seq_length = len(seq_in)
