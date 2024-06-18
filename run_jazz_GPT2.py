@@ -1,4 +1,4 @@
-from data_utils.Datasets import SerializedConcatDataset, BinarySerializer
+from data_utils.Datasets import SerializedConcatDataset
 import numpy as np
 from torch.utils.data import DataLoader, Subset, random_split
 import sys
