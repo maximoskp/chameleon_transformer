@@ -26,7 +26,8 @@ max_seq_length = binser.max_seq_length
 dropout = 0.3
 
 # load data
-npz_path = 'data/augmented_and_padded_data.npz'
+# npz_path = 'data/augmented_and_padded_data.npz'
+npz_path = 'data/augmented_and_padded_data_650_songs_with_measure_info.npz'
 dataset = SerializedConcatDataset(npz_path, pad_to_length=max_seq_length, left_padding=False)
 
 train_percentage = 0.9
@@ -50,7 +51,7 @@ test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True, drop_las
 shift_dataset = SerializedConcatDataset(npz_path, pad_to_length=max_seq_length, left_padding=False)
 shift_loader = DataLoader(shift_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
-dev = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+dev = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 config = AutoConfig.from_pretrained(
     "gpt2",

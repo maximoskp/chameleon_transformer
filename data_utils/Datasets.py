@@ -13,6 +13,7 @@ class BinarySerializer:
         16: chord segment separator
         17 to 17+11=28: chord pitch class
         29: end harmonizing
+        30-37: bar 0-7
         
         vocab_size = 30
         '''
@@ -24,20 +25,29 @@ class BinarySerializer:
         self.chord_segment_separator = 16
         self.chord_offset = 17
         self.end_harmonizing = 29
+        self.bar_offset = 30
+        self.max_bar_counter = 8
         self.max_seq_length = 0
         self.pad_to_length = pad_to_length
         self.left_padding = left_padding
-        self.vocab_size = 30
+        self.vocab_size = 30 + self.max_bar_counter
     # end init
-    def sequence_serialization(self, melody, chords):
+    def sequence_serialization(self, melody, chords, bars):
         seq_in = []
         seq_in.append(self.start_melody)
+        # the first item in bars should be 0
+        seq_in.append( self.bar_offset )
+        bar_idx = 1
         for i in range(melody.shape[0]):
-            # check if melody pcs exist
-            m = melody[i,:]
             # check if no more melody
             if np.sum( melody[i:,:] ) == 0:
                 break
+            # check for bar
+            if bars[bar_idx] > 0 and i >= bars[bar_idx]:
+                seq_in.append( self.bar_offset + bar_idx%self.max_bar_counter )
+                bar_idx += 1
+            # get current melody
+            m = melody[i,:]
             nzm = np.nonzero(m)[0]
             seq_in.append( self.melody_segment_separator )
             seq_in.extend( nzm + self.melody_offset )
@@ -63,7 +73,7 @@ class BinarySerializer:
                 seq_in_np = np.pad(seq_in_np, (0, self.pad_to_length - seq_in_np.shape[0]), constant_values=(self.padding, self.padding))
         # masks
         target_masked = np.array(seq_in_np[1:])
-        target_masked[target_masked < self.start_harmonizing] = -100
+        target_masked[np.logical_or(target_masked < self.start_harmonizing, target_masked >= self.bar_offset)] = -100
         return seq_in_np, target_masked
     # end sequence_serialization
 
@@ -258,6 +268,7 @@ class PermSerializedConcatDataset(Dataset):
         data = np.load(npz_path)
         self.melody_pcps = data['melody_pcps'].astype('float32')
         self.chord_pcps = data['chord_pcps'].astype('float32')
+        self.measure_onsets = data['measure_onsets'].astype('float32')
         self.binser = BinarySerializer(pad_to_length=pad_to_length, left_padding=left_padding)
     # end __init__
     
@@ -268,11 +279,12 @@ class PermSerializedConcatDataset(Dataset):
     def __getitem__(self, idx):
         m = self.melody_pcps[idx,:,:]
         c = self.chord_pcps[idx,:,:]
+        b = self.measure_onsets[idx,:]
         for i in range(m.shape[0]):
             p = np.random.permutation(12)
             m[i,:] = m[i,p]
             c[i,:] = c[i,p]
-        t, t_masked = self.binser.sequence_serialization( m , c )
+        t, t_masked = self.binser.sequence_serialization( m , c, b )
         return t, t_masked
     # end __getitem__
 # end PermSerializedConcatDataset
@@ -282,6 +294,7 @@ class ShiftSerializedConcatDataset(Dataset):
         data = np.load(npz_path)
         self.melody_pcps = data['melody_pcps'].astype('float32')
         self.chord_pcps = data['chord_pcps'].astype('float32')
+        self.measure_onsets = data['measure_onsets'].astype('float32')
         self.binser = BinarySerializer(pad_to_length=pad_to_length, left_padding=left_padding)
     # end __init__
     
@@ -292,11 +305,12 @@ class ShiftSerializedConcatDataset(Dataset):
     def __getitem__(self, idx):
         m = self.melody_pcps[idx,:,:]
         c = self.chord_pcps[idx,:,:]
+        b = self.measure_onsets[idx,:]
         # get length of c reducing its size
         len_c = c.shape[0]
         # random end, keep at least 1
         idx = np.random.randint(len_c-1) + 1
-        t, t_masked = self.binser.sequence_serialization( m , c[:idx,:] )
+        t, t_masked = self.binser.sequence_serialization( m , c[:idx,:], m )
         return t, t_masked
     # end __getitem__
 # end ShiftSerializedConcatDataset
@@ -306,6 +320,7 @@ class MelBoostSerializedConcatDataset(Dataset):
         data = np.load(npz_path)
         self.melody_pcps = data['melody_pcps'].astype('float32')
         self.chord_pcps = data['chord_pcps'].astype('float32')
+        self.measure_onsets = data['measure_onsets'].astype('float32')
         self.remove_percentage = remove_percentage
         self.binser = BinarySerializer(pad_to_length=pad_to_length, left_padding=left_padding)
     # end __init__
@@ -317,6 +332,7 @@ class MelBoostSerializedConcatDataset(Dataset):
     def __getitem__(self, idx):
         m = self.melody_pcps[idx,:,:]
         c = self.chord_pcps[idx,:,:]
+        b = self.measure_onsets[idx,:]
         # remove random components of the melody
         # find non-zero indexes
         nnz = np.nonzero(m)
@@ -328,7 +344,7 @@ class MelBoostSerializedConcatDataset(Dataset):
         perm_idxs = np.random.permutation(num_nnz)
         # zero-out first permutated
         m[ nnz[0][perm_idxs[:num_remove]] , nnz[1][perm_idxs[:num_remove]] ] = 0
-        t, t_masked = self.binser.sequence_serialization( m , c )
+        t, t_masked = self.binser.sequence_serialization( m , c, b )
         return t, t_masked
     # end __getitem__
 # end MelBoostSerializedConcatDataset
@@ -338,6 +354,7 @@ class SerializedConcatDataset(Dataset):
         data = np.load(npz_path)
         self.melody_pcps = data['melody_pcps'].astype('float32')
         self.chord_pcps = data['chord_pcps'].astype('float32')
+        self.measure_onsets = data['measure_onsets'].astype('float32')
         self.binser = BinarySerializer(pad_to_length=pad_to_length, left_padding=left_padding)
     # end __init__
     
@@ -348,7 +365,8 @@ class SerializedConcatDataset(Dataset):
     def __getitem__(self, idx):
         m = self.melody_pcps[idx,:,:]
         c = self.chord_pcps[idx,:,:]
-        t, t_masked = self.binser.sequence_serialization( m , c )
+        b = self.measure_onsets[idx,:]
+        t, t_masked = self.binser.sequence_serialization( m , c, b )
         return t, t_masked
     # end __getitem__
 # end SerializedConcatDataset
