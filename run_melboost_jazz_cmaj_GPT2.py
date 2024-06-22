@@ -13,7 +13,7 @@ import pickle
 
 from transformers import AutoConfig, GPT2LMHeadModel
 
-with open('tests/serializer_jazz.pkl', 'rb') as inp:
+with open('tests/serializer_jazz_cmaj.pkl', 'rb') as inp:
     binser = pickle.load(inp)
 
 # define model
@@ -27,7 +27,7 @@ dropout = 0.3
 
 # load data
 # npz_path = 'data/augmented_and_padded_data.npz'
-npz_path = 'data/augmented_and_padded_data_650_songs_with_measure_info.npz'
+npz_path = 'data/jazz_c_major_bars.npz'
 dataset = SerializedConcatDataset(npz_path, pad_to_length=max_seq_length, left_padding=False)
 
 train_percentage = 0.9
@@ -51,7 +51,7 @@ test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True, drop_las
 shift_dataset = MelBoostSerializedConcatDataset(npz_path, pad_to_length=max_seq_length, left_padding=False)
 shift_loader = DataLoader(shift_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
-dev = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+dev = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
 
 config = AutoConfig.from_pretrained(
     "gpt2",
@@ -74,7 +74,7 @@ optimizer = Adam(transformer.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-
 
 transformer.train()
 
-save_name = 'melboost_jazz_GPT2'
+save_name = 'melboost_jazz_cmaj_GPT2'
 
 # keep best validation loss for saving
 best_val_loss = np.inf
