@@ -98,6 +98,8 @@ class BinarySerializer:
                 labels.append( 'm_' + str(i - self.melody_offset) )
             elif i >= self.chord_offset and i < self.end_harmonizing:
                 labels.append( 'c_' + str(i - self.chord_offset) )
+            elif i > self.end_harmonizing and i <= self.end_harmonizing + self.max_bar_counter:
+                labels.append( 'b_' + str(i - self.end_harmonizing) )
             else:
                 labels.append( 'ERROR' )
         return labels
